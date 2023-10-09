@@ -4,7 +4,16 @@ import "@nomicfoundation/hardhat-toolbox";
 import "dotenv/config";
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.19",
+  solidity: {
+    compilers: [
+      {
+        version: "0.8.19",
+      },
+      {
+        version: "0.8.20",
+      },
+    ],
+  },
   networks: {
     sapphire_testnet: {
       url: "https://testnet.sapphire.oasis.dev",

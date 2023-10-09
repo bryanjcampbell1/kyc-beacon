@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.20;
 
+//import "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
 import "hardhat/console.sol";
 
 interface IKycBeaconConsumer {
@@ -30,6 +33,7 @@ contract KycBeacon is Ownable {
     string passportHash;
     string driversLicenseHash;
     string taxReturnHash;
+    string encryptionKey;
     mapping(address => bool) approvedDapps;
   }
 
@@ -44,7 +48,13 @@ contract KycBeacon is Ownable {
     Visibility[] visibilityRequests;
   }
 
+  struct PrivateDataRequestMessage {
+    address requester;
+    uint256 expiry;
+  }
+
   mapping(address => User) users;
+  mapping(address => string) encryptionKeys;
   mapping(address => bool) certifierWhitelist;
   mapping(address => Certifier) certifiers;
   mapping(address => Dapp) dapps;
@@ -62,6 +72,7 @@ contract KycBeacon is Ownable {
   // only works if 
   // dappSubscriptionFee = (number of users requesting certification) x certifierFee / (number of dapps paying subscription)
 
+  error Unauthorized(address user);
   error ValidCertExists(address user, address certifier, CertType certType);
   error PendingCertMissing(address user, address certifier, CertType certType);
 
@@ -73,10 +84,18 @@ contract KycBeacon is Ownable {
   event CertificationPassed(address indexed user, address indexed certifier, CertType indexed certType);
   event CertificationFailed(address indexed user, address indexed certifier, CertType indexed certType);
 
-  constructor(uint256 _certifierFee, uint256 _dappSubscriptionFee) {
+  constructor(uint256 _certifierFee, uint256 _dappSubscriptionFee) Ownable(msg.sender){
     certifierFee = _certifierFee;
     dappSubscriptionFee = _dappSubscriptionFee;
   }
+
+    // Modifiers
+  modifier onlyPermitted(address _userAddress, bytes32 signedMessageHash, bytes calldata signature) {
+    address signer = ECDSA.recover(signedMessageHash, signature);
+    if ((signer != msg.sender) || (signer != _userAddress && !certifierWhitelist[signer]) )revert Unauthorized(msg.sender);
+    _;
+  }
+
 
   // USER FUNCTIONS
   function submitSupportingDocs(bytes calldata data, CertType certType) public {
@@ -86,7 +105,8 @@ contract KycBeacon is Ownable {
       string memory phone,
       string memory passportHash,
       string memory driversLicenseHash, 
-      string memory taxReturnHash ) = abi.decode(data, (string,string,string,string,string,string));
+      string memory taxReturnHash,
+      string memory encryptionKey ) = abi.decode(data, (string,string,string,string,string,string,string));
 
     User storage user = users[msg.sender];
     user.name = name;
@@ -95,31 +115,26 @@ contract KycBeacon is Ownable {
     user.passportHash = passportHash;
     user.driversLicenseHash = driversLicenseHash;
     user.taxReturnHash = taxReturnHash;
-
-    // Cert memory cert = Cert(certType, Status.REQUESTED, msg.sender, block.timestamp);
-    // User storage user = users[userAddress];
-    // Cert[] storage certs = user.certs;
+    user.encryptionKey = encryptionKey;
 
     emit CertificationRequest(msg.sender, certType);
   }
 
-  function viewUser(address _userAddress) public view returns(Cert[] memory, string[] memory){
-    require(msg.sender == _userAddress, "not authorized to view user data");
+  function viewUser(address _userAddress, bytes32 _signedMessageHash, bytes calldata _signature) public view onlyPermitted(_userAddress, _signedMessageHash, _signature) returns(Cert[] memory, string[] memory){
 
     User storage user = users[_userAddress];
 
-    string[] memory userInfo = new string[](6);
+    string[] memory userInfo = new string[](7);
     userInfo[0] = user.name;
     userInfo[1] = user.email;
     userInfo[2] = user.phone;
     userInfo[3] = user.passportHash;
     userInfo[4] = user.driversLicenseHash;
     userInfo[5] = user.taxReturnHash;
+    userInfo[6] = user.encryptionKey;
 
-    // can I just return the user struct instead of destructureing it here?
     return(user.certs, userInfo);
   }
-
 
   function approveDapp(address dappAddress) public {
     User storage user = users[msg.sender];

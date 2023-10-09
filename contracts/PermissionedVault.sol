@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import { IKycBeaconConsumer } from "./KycBeacon.sol";
-import "hardhat/console.sol";
 
 // This vault is classified as a security. Only Reg D accredited investors can participate.
 contract PermissionedVault is Ownable, IKycBeaconConsumer, ERC4626 {
@@ -19,7 +18,7 @@ contract PermissionedVault is Ownable, IKycBeaconConsumer, ERC4626 {
     address _assetAddress,
     address _kycAdmin,
     address _kycBeacon
-  ) ERC20("Pemissioned Vault", "PVT") ERC4626(IERC20(_assetAddress)){
+  ) ERC20("Pemissioned Vault", "PVT") ERC4626(IERC20(_assetAddress)) Ownable(msg.sender){
     kycAdmin = _kycAdmin;
     kycBeacon = _kycBeacon;
   }
