@@ -19,7 +19,7 @@ KYC_ADMIN_PUB_KEY="YOUR_KYC_ADMIN_PUB_KEY"
 KYC_CERTIFIER_PUB_KEY="YOUR_KYC_CERTIFIER_PUB_KEY"
 ```
 
-## Install, Compile and Test
+## Compile and Test
 ```shell
 npx hardhat test
 ```
