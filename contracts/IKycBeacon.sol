@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+/// @title IKycBeacon
+/// @author strangequark.eth
+/// @notice Interface for KycBeacon used for definition of structs, enums, events, errors
 interface IKycBeacon {
 
   enum CertType{ KYC, AML, REG_D, ALL }

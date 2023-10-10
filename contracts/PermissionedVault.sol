@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import "./IKycBeaconConsumer.sol";
 
-// This vault is classified as a security. Only Reg D accredited investors can participate.
+/// @notice Test Dapp used to simulate integration of KycBeacon with a 3rd party Vault
 contract PermissionedVault is Ownable, IKycBeaconConsumer, ERC4626 {
 
   address public kycAdmin;
