@@ -1,88 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-//import "@oasisprotocol/sapphire-contracts/contracts/Sapphire.sol";
+import "./IKycBeacon.sol";
+import "./IKycBeaconConsumer.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "hardhat/console.sol";
 
-interface IKycBeaconConsumer {
-  function kycAdmin() external view returns (address);
-  function autoWhitelist(address, bool[] memory) external;
-}
+contract KycBeacon is IKycBeacon, Ownable {
 
-contract KycBeacon is Ownable {
-
-  enum CertType{ KYC, AML, REG_D, ALL }
-  enum Status{ UNINITIATED, PENDING, PASS }
-  enum Visibility{ CERTS, NAME, EMAIL, PHONE, PASSPORT, LICENSE, TAXES}
-
-  struct Cert{
-    CertType certType;
-    Status status;
-    address certifiedBy;
-    uint expiration;
-  }
-  
-  struct User{
-    Cert[] certs;
-    string name;
-    string email;
-    string phone;
-    string passportHash;
-    string driversLicenseHash;
-    string taxReturnHash;
-    string encryptionKey;
-    mapping(address => bool) approvedDapps;
-  }
-
-  struct Certifier{
-    string website;
-    string taxId;
-  }
-
-  struct Dapp {
-    bool autoWhitelist; 
-    uint256 subscriptionExpiration;
-    Visibility[] visibilityRequests;
-  }
-
-  struct PrivateDataRequestMessage {
-    address requester;
-    uint256 expiry;
-  }
+  uint256 certifierFee;
+  uint256 dappSubscriptionFee;
 
   mapping(address => User) users;
   mapping(address => string) encryptionKeys;
   mapping(address => bool) certifierWhitelist;
   mapping(address => Certifier) certifiers;
   mapping(address => Dapp) dapps;
-
-  // Fee paid to the certifiers for eveluating users 
-  uint256 certifierFee;
-
-  // Fee paid to the contract by the dapps
-  // Will be adjusted regularly based on number of participating dapps and user demand
-  uint256 dappSubscriptionFee;
-
-  // Ultimately the fee paid to kycBeacon has to be just slightly more than 
-  // (number of users requesting certification) x certifierFee
-
-  // only works if 
-  // dappSubscriptionFee = (number of users requesting certification) x certifierFee / (number of dapps paying subscription)
-
-  error Unauthorized(address user);
-  error ValidCertExists(address user, address certifier, CertType certType);
-  error PendingCertMissing(address user, address certifier, CertType certType);
-
-  event RegisterCertifier(address indexed certifier, string website);
-  event RegisterDapp(address indexed dappAddress, address dappAdmin); 
-  event RenewSubscription(address indexed dappAddress, uint256 expires); 
-  event CertificationRequest(address indexed user, CertType indexed certType);
-  event CertificationInitiated(address indexed user, address indexed certifier, CertType indexed certType);
-  event CertificationPassed(address indexed user, address indexed certifier, CertType indexed certType);
-  event CertificationFailed(address indexed user, address indexed certifier, CertType indexed certType);
 
   constructor(uint256 _certifierFee, uint256 _dappSubscriptionFee) Ownable(msg.sender){
     certifierFee = _certifierFee;
@@ -95,7 +30,6 @@ contract KycBeacon is Ownable {
     if ((signer != msg.sender) || (signer != _userAddress && !certifierWhitelist[signer]) )revert Unauthorized(msg.sender);
     _;
   }
-
 
   // USER FUNCTIONS
   function submitSupportingDocs(bytes calldata data, CertType certType) public {
@@ -234,17 +168,6 @@ contract KycBeacon is Ownable {
     }
   }
 
-  function _findCertType(Cert[] memory certs, CertType certType ) internal pure returns(uint){
-    uint foundAt = type(uint256).max;
-    for(uint i; i< certs.length; i++ ){
-      if(certs[i].certType == certType){
-        foundAt = i;
-        break;
-      }
-    }
-    return foundAt;
-  }
-
   // DAPP FUNCTIONS
   function registerDapp(uint8 numberOfMonths, address dappAddress, Visibility[] calldata visibilitySettings, bool isAutoWhitelist) public payable {
     require(msg.value == uint256(numberOfMonths) * dappSubscriptionFee, "Subscription unpaid");
@@ -292,6 +215,18 @@ contract KycBeacon is Ownable {
     userInfo[5] = _isVisible(Visibility.TAXES, dapp.visibilityRequests)? user.taxReturnHash : "";
 
     return(certs, userInfo);
+  }
+
+  // Internal Functions
+  function _findCertType(Cert[] memory certs, CertType certType ) internal pure returns(uint){
+    uint foundAt = type(uint256).max;
+    for(uint i; i< certs.length; i++ ){
+      if(certs[i].certType == certType){
+        foundAt = i;
+        break;
+      }
+    }
+    return foundAt;
   }
 
   function _isVisible(Visibility _value, Visibility[] memory _visibilityRequests) internal pure returns (bool) {

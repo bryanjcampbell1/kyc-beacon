@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
-import { IKycBeaconConsumer } from "./KycBeacon.sol";
+import "./IKycBeaconConsumer.sol";
 
 // This vault is classified as a security. Only Reg D accredited investors can participate.
 contract PermissionedVault is Ownable, IKycBeaconConsumer, ERC4626 {
