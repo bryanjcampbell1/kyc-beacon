@@ -26,11 +26,20 @@ contract KycBeacon is IKycBeacon, Ownable {
     dappSubscriptionFee = _dappSubscriptionFee;
   }
 
-  /// @notice Checks that the auth message signer matches the msg.sender
+  /// @notice Check that auth message signer is either msg.sender or a whitelisted certifier
   /// @dev msg.sender can be spoofed for view functions so this acts as our auth check
   modifier onlyPermitted(address _userAddress, bytes32 _messageHash, bytes calldata _signature) {
     address signer = ECDSA.recover(_messageHash, _signature);
     if ((signer != msg.sender) || (signer != _userAddress && !certifierWhitelist[signer]) )revert Unauthorized(msg.sender);
+    _;
+  }
+
+  /// @notice Checks that the auth message signer matches the msg.sender
+  /// @dev msg.sender can be spoofed for view functions so this acts as our auth check
+  modifier onlyDapp(address _dappAddress, bytes32 _messageHash, bytes calldata _signature) {
+    address signer = ECDSA.recover(_messageHash, _signature);
+    require(signer == IKycBeaconConsumer(_dappAddress).kycAdmin(), "Only kycAdmin can view");
+    if (signer != msg.sender) revert Unauthorized(msg.sender);
     _;
   }
 
@@ -218,9 +227,10 @@ contract KycBeacon is IKycBeacon, Ownable {
 
   /// @notice Getter for Dapp private data. Useful for admin of 3rd party Dapps.
   /// @param _dappAddress Address of Dapp
+  /// @param _messageHash Hash of the auth message 
+  /// @param _signature Signature of the hashed message
   /// @return Private Dapp data includeing subscription info
-  function viewDapp(address _dappAddress) public view returns(Dapp memory){
-    require(msg.sender == IKycBeaconConsumer(_dappAddress).kycAdmin(), "Only kycAdmin can view");
+  function viewDapp(address _dappAddress, bytes32 _messageHash, bytes calldata _signature) public onlyDapp(_dappAddress, _messageHash, _signature) view returns(Dapp memory){
     return dapps[_dappAddress];
   }
 
@@ -241,8 +251,10 @@ contract KycBeacon is IKycBeacon, Ownable {
   /// @notice Getter for private user data matching the Dapp visibility settings
   /// @param _userAddress Address of user
   /// @param _dappAddress Address of Dapp
+  /// @param _messageHash Hash of the auth message 
+  /// @param _signature Signature of the hashed message
   /// @return Private user data
-  function manualReview(address _userAddress, address _dappAddress) public view returns(Cert[] memory, string[] memory){
+  function manualReview(address _userAddress, address _dappAddress, bytes32 _messageHash, bytes calldata _signature) public view onlyDapp(_dappAddress, _messageHash, _signature) returns(Cert[] memory, string[] memory){
     User storage user = users[_userAddress];
     Dapp memory dapp = dapps[_dappAddress];
 

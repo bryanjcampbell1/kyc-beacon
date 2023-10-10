@@ -64,8 +64,8 @@ interface IKycBeacon {
   function fail(address userAddress, CertType certType) external;
   function registerDapp(uint8 numberOfMonths, address dappAddress, Visibility[] calldata visibilitySettings, bool isAutoWhitelist) external payable;
   function renewSubscription(uint8 numberOfMonths, address dappAddress) external payable;
-  function viewDapp(address dappAddress) external view returns (Dapp memory);
-  function manualReview(address userAddress, address dappAddress) external view returns(Cert[] memory, string[] memory);
+  function viewDapp(address dappAddress, bytes32 _messageHash, bytes calldata _signature) external view returns (Dapp memory);
+  function manualReview(address userAddress, address dappAddress, bytes32 _messageHash, bytes calldata _signature) external view returns(Cert[] memory, string[] memory);
   function editCertifierWhitelist(address certifierAddress, bool isApproved) external;
   function editCertifierFee(uint256 _fee) external;
   function editDappSubscriptionFee(uint256 _fee) external;

@@ -106,8 +106,12 @@ describe("KycBeacon", function () {
 
     await registerDapp(kycAdmin, kycBeacon, permissionedVault.target);
 
+    const { messageHash, signature } = await signAuthMessage(kycAdmin);
+
     const expiration = (
-      await kycBeacon.connect(kycAdmin).viewDapp(permissionedVault.target)
+      await kycBeacon
+        .connect(kycAdmin)
+        .viewDapp(permissionedVault.target, messageHash, signature)
     )[1];
 
     const options = { value: BigInt(5 * 10 ** 19).toString() };
@@ -116,7 +120,9 @@ describe("KycBeacon", function () {
       .renewSubscription(5, permissionedVault.target, options);
 
     const newExpiration = (
-      await kycBeacon.connect(kycAdmin).viewDapp(permissionedVault.target)
+      await kycBeacon
+        .connect(kycAdmin)
+        .viewDapp(permissionedVault.target, messageHash, signature)
     )[1];
 
     expect(newExpiration).to.equal(
@@ -156,9 +162,16 @@ describe("KycBeacon", function () {
       await kycBeacon.connect(user).approveDapp(permissionedVault.target)
     ).wait();
 
+    const { messageHash, signature } = await signAuthMessage(kycAdmin);
+
     const docs = await kycBeacon
       .connect(kycAdmin)
-      .manualReview(user.address, permissionedVault.target);
+      .manualReview(
+        user.address,
+        permissionedVault.target,
+        messageHash,
+        signature
+      );
 
     expect(docs[1][0]).to.equal("Lil Jon");
     expect(docs[1][1]).to.equal("get_low2002@hotmail.com");
